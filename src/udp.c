@@ -151,6 +151,6 @@ void udp_packet_gen_10base(uint32_t *buf, uint8_t *udp_payload) {
     for (i = 0; i < DEF_UDP_BUF_SIZE; i++) {
         buf[i] = tbl_manchester[data_8b[i]];
     }
-    // TP_IDLE
+    // TP_IDL
     buf[i] = 0x00000AAA;
 }
