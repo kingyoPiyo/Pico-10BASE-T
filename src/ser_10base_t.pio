@@ -1,0 +1,52 @@
+;***************************************************
+; Title     : Serializer for 10BASE-T
+; Date      : 2022/8/12
+; Design    : kingyo
+;***************************************************
+
+.program ser_10base_t
+.side_set 2
+.origin 0
+
+;clk 20MHz, input 1bit
+.wrap_target
+    out pc, 2  side 0b00    ; IDLE
+    out pc, 2  side 0b01    ; LOW
+    out pc, 2  side 0b10    ; HIGH
+.wrap
+
+% c-sdk {
+
+    static inline void ser_10base_t_program_init(PIO pio, uint sm, uint offset, uint pin_tx)
+    {
+        pio_sm_set_pins_with_mask(pio, sm, 2u << pin_tx, 3u << pin_tx);
+        pio_sm_set_pindirs_with_mask(pio, sm, ~0u, 3u << pin_tx);
+        pio_gpio_init(pio, pin_tx);
+        pio_gpio_init(pio, pin_tx + 1);
+
+        // gpio_set_drive_strength(pin_tx, GPIO_DRIVE_STRENGTH_12MA);
+        // gpio_set_slew_rate(pin_tx, GPIO_SLEW_RATE_FAST);
+        // gpio_set_drive_strength(pin_tx + 1, GPIO_DRIVE_STRENGTH_12MA);
+        // gpio_set_slew_rate(pin_tx + 1, GPIO_SLEW_RATE_FAST);
+
+        pio_sm_config c = ser_10base_t_program_get_default_config(offset);
+        sm_config_set_out_shift(&c, true, true, 32);   // Shift OSR to Right, Autopull is Enable
+
+        sm_config_set_sideset_pins(&c, pin_tx);
+        // sm_config_set_out_pins(&c, pin_tx, 1);
+
+        sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+
+        // 125MHz / 6.25 = 20MHz
+        sm_config_set_clkdiv(&c, 6.25);
+
+        pio_sm_init(pio, sm, offset, &c);
+        pio_sm_set_enabled(pio, sm, true);
+    }
+
+    static inline void ser_10base_t_tx_10b(PIO pio, uint sm, uint32_t txdata)
+    {
+        pio_sm_put_blocking(pio, sm, txdata);
+    }
+
+%}
