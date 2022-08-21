@@ -12,3 +12,18 @@ Have fun!
 
 # Ethernet Packet Example
 <img src="doc/packet.png" width="500">  
+
+# Ethernet Physical layer waveform
+Measured with 100Ω termination.  
+
+NLP(Normal Link Pulse)  
+<img src="doc/nlp.png" width="500">  
+
+Ethernet Packet overview  
+<img src="doc/packet_2.png" width="500">  
+
+Preamble  
+<img src="doc/preamble.png" width="500">  
+
+TP_IDL  
+<img src="doc/tp_idl.png" width="500">  
