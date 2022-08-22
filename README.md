@@ -1,6 +1,11 @@
 # Pico-10BASE-T
 10BASE-T from Raspberry Pi Pico
 
+Note:
+* Currently only transmission only (UDP is available)
+* Receiving process will be implemented in the future...
+* It is advisable to insert a pulse transformer for safety.
+
 # Setup
 * Raspberry Pi Pico
 * 2 x 47 ohm register
