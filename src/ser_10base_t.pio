@@ -8,7 +8,7 @@
 .side_set 2
 .origin 0
 
-;clk 20MHz, input 1bit
+;clk 20MHz, input 2bit
 .wrap_target
     out pc, 2  side 0b00    ; IDLE
     out pc, 2  side 0b01    ; LOW
