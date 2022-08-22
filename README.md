@@ -2,6 +2,7 @@
 10BASE-T from Raspberry Pi Pico
 
 Note:
+* DO NOT CONNECT to PoE equipment!!
 * Currently only transmission only (UDP is available)
 * Receiving process will be implemented in the future...
 * It is advisable to insert a pulse transformer for safety.
