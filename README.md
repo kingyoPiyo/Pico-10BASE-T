@@ -33,3 +33,19 @@ Preamble
 
 TP_IDL  
 <img src="doc/tp_idl.png" width="500">  
+
+# How to make a pulse transformer
+A simple pulse transformer can be built using ferrite cores that have fallen around!  
+Adding a transformer ensures insulation and safe experimentation.  
+
+<img src="doc/pt1.png" width="500">  
+
+Pass it through the core about three times.  
+<img src="doc/pt2.png" width="500">  
+
+Just connect it into the RasPico and you're done!  
+<img src="doc/pt3.png" width="500">  
+
+The waveform after passing through the transformer.  
+<img src="doc/pt4.png" width="500">  
+
