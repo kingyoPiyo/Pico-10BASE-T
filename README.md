@@ -3,14 +3,14 @@
 
 Note:
 * DO NOT CONNECT to PoE equipment!!
-* Currently only transmission only (UDP is available)
+* Currently transmission only (UDP is available)
 * Receiving process will be implemented in the future...
 * It is advisable to insert a pulse transformer for safety.
 
 # Setup
 * Raspberry Pi Pico
-* 2 x 47 ohm register
-* 1 x 470 ohm register
+* 2 x 47 ohm resistor
+* 1 x 470 ohm resistor
 * RJ45 connector(GP16 = TX-, GP17 = TX+)
 
 Have fun!  
