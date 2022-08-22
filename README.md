@@ -49,3 +49,10 @@ Just connect it into the RasPico and you're done!
 The waveform after passing through the transformer.  
 <img src="doc/pt4.png" width="500">  
 
+# Waveforms of commercial network devices
+Physical layer signal waveforms of commercial network equipment operating at 10BASE-T.  
+<img src="doc/commercial_network_devices.png" width="500">  
+
+Measured with 100Ω termination.  
+<img src="doc/probe.png" width="500">  
+
