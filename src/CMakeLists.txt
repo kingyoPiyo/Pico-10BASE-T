@@ -22,7 +22,7 @@ target_link_libraries(${target_name} PRIVATE
     )
 
 # enable usb output, disable uart output
-pico_enable_stdio_usb(Pico-10BASE-T 0)
+pico_enable_stdio_usb(Pico-10BASE-T 1)
 pico_enable_stdio_uart(Pico-10BASE-T 0)
 
 pico_add_extra_outputs(${target_name})
