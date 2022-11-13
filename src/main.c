@@ -25,7 +25,10 @@ static struct repeating_timer timer;
 static PIO pio_serdes = pio0;
 static uint sm_tx = 0;
 static uint sm_rx = 1;
+
+
 volatile static bool sfd_det;
+volatile static uint32_t shift_val;
 
 
 // Timer interrupt (L-tika)
@@ -104,7 +107,7 @@ int main() {
         if (sfd_det) {
             sfd_det = false;
             sfd_cnt++;
-            printf("\r\nSFD[%06d] ", sfd_cnt);
+            printf("SFD[%06d] shift:%d\r\n", sfd_cnt, shift_val);
         }
 
         sleep_ms(20);
@@ -114,12 +117,8 @@ int main() {
 
 // Rx Process
 static void rx_main() {
-    PIO pio_serdes = pio0;
-    uint sm_rx = 1;
-
     uint32_t rx_buf;
     uint32_t rx_buf_old;
-    uint32_t shift_val;
     uint32_t buf_shift;
 
     for (;;) {
@@ -137,7 +136,6 @@ static void rx_main() {
             }
         }
         rx_buf_old = rx_buf;
-
 
         gpio_put(HW_PINNUM_OUT1, 0);
 
