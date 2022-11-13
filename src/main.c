@@ -116,25 +116,49 @@ int main() {
 
 
 // Rx Process
-static void rx_main() {
+static void __time_critical_func(rx_main)(void) {
     uint32_t rx_buf;
     uint32_t rx_buf_old;
     uint32_t buf_shift;
-
+    
     for (;;) {
         rx_buf = pio_sm_get_blocking(pio_serdes, sm_rx);
 
         gpio_put(HW_PINNUM_OUT1, 1);
 
-        // Search SFD
-        for (int i = 0; i < 32; i++) {
-         buf_shift = (rx_buf << (32 - i)) + (rx_buf_old >> i);
-            if (buf_shift == 0xd5555555) {
-                shift_val = i;
-                sfd_det = true;
-                break;
-            }
-        }
+        if ( 0xd5555555 == rx_buf_old                          ) { shift_val =  0; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 31) + (rx_buf_old >>  1) ) { shift_val =  1; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 30) + (rx_buf_old >>  2) ) { shift_val =  2; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 29) + (rx_buf_old >>  3) ) { shift_val =  3; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 28) + (rx_buf_old >>  4) ) { shift_val =  4; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 27) + (rx_buf_old >>  5) ) { shift_val =  5; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 26) + (rx_buf_old >>  6) ) { shift_val =  6; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 25) + (rx_buf_old >>  7) ) { shift_val =  7; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 24) + (rx_buf_old >>  8) ) { shift_val =  8; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 23) + (rx_buf_old >>  9) ) { shift_val =  9; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 22) + (rx_buf_old >> 10) ) { shift_val = 10; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 21) + (rx_buf_old >> 11) ) { shift_val = 11; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 20) + (rx_buf_old >> 12) ) { shift_val = 12; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 19) + (rx_buf_old >> 13) ) { shift_val = 13; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 18) + (rx_buf_old >> 14) ) { shift_val = 14; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 17) + (rx_buf_old >> 15) ) { shift_val = 15; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 16) + (rx_buf_old >> 16) ) { shift_val = 16; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 15) + (rx_buf_old >> 17) ) { shift_val = 17; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 14) + (rx_buf_old >> 18) ) { shift_val = 18; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 13) + (rx_buf_old >> 19) ) { shift_val = 19; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 12) + (rx_buf_old >> 20) ) { shift_val = 20; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 11) + (rx_buf_old >> 21) ) { shift_val = 21; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf << 10) + (rx_buf_old >> 22) ) { shift_val = 22; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf <<  9) + (rx_buf_old >> 23) ) { shift_val = 23; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf <<  8) + (rx_buf_old >> 24) ) { shift_val = 24; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf <<  7) + (rx_buf_old >> 25) ) { shift_val = 25; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf <<  6) + (rx_buf_old >> 26) ) { shift_val = 26; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf <<  5) + (rx_buf_old >> 27) ) { shift_val = 27; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf <<  4) + (rx_buf_old >> 28) ) { shift_val = 28; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf <<  3) + (rx_buf_old >> 29) ) { shift_val = 29; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf <<  2) + (rx_buf_old >> 30) ) { shift_val = 30; sfd_det = true; }
+        if ( 0xd5555555 == (rx_buf <<  1) + (rx_buf_old >> 31) ) { shift_val = 31; sfd_det = true; }
+
         rx_buf_old = rx_buf;
 
         gpio_put(HW_PINNUM_OUT1, 0);
