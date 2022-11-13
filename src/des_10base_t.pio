@@ -45,7 +45,7 @@ start_of_1:            ; We are 0.25 bits into a 1 - signal is 1
         sm_config_set_jmp_pin(&c, pin_rx); // for JMP
         sm_config_set_in_shift(&c, true, true, 32);
         sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
-        sm_config_set_clkdiv(&c, 1.0f);
+        sm_config_set_clkdiv(&c, 2.0f);
 
         // for Debug
         sm_config_set_out_pins(&c, pin_dbg, 1);
