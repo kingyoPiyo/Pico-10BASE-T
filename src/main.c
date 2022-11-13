@@ -18,6 +18,9 @@
 #define HW_PINNUM_OUT0      (1)     // SMA OUT0 for Debug
 #define HW_PINNUM_OUT1      (0)     // SMA OUT0 for Debug
 
+#define DEF_NLP_INTERVAL_US (16000)     // NLP interval = 16ms +/- 8ms
+#define DEF_DMY_INTERVAL_US (200000)    // Dummy Data send interval
+
 static void rx_main(void);
 
 static struct repeating_timer timer;
@@ -26,9 +29,6 @@ static PIO pio_serdes = pio0;
 static uint sm_tx = 0;
 static uint sm_rx = 1;
 
-
-volatile static bool sfd_det;
-volatile static uint32_t shift_val;
 
 
 // Timer interrupt (L-tika)
@@ -50,6 +50,9 @@ int main() {
 
     uint32_t lp_cnt = 0;
     uint32_t sfd_cnt = 0;
+    uint32_t time_now;
+    uint32_t time_nlp;
+    uint32_t time_send;
 
     set_sys_clock_khz(240000, true);    // Over clock 240MHz
 
@@ -87,10 +90,20 @@ int main() {
     multicore_launch_core1(rx_main);
 
 
-    // Send packets every about 200ms.
-    for (uint32_t i = 0;;i++) {
+    while (1) {
+        time_now = time_us_32();
 
-        if ((i % 10) == 0) {
+        // NLP
+        if ((time_now - time_nlp) > DEF_NLP_INTERVAL_US) {
+            time_nlp = time_now;
+
+            // Sending NLP Pulse (Pulse width = 100ns)
+            ser_10base_t_tx_10b(pio_serdes, sm_tx, 0x0000000A);
+        }
+
+        // Test Packet
+        if ((time_now - time_send) > DEF_DMY_INTERVAL_US) {
+            time_send = time_now;
 
             // Sending UDP packets
             sprintf(udp_payload, "Hello World!! Raspico 10BASE-T !! lp_cnt:%d", lp_cnt++);
@@ -98,20 +111,15 @@ int main() {
             for (uint32_t i = 0; i < DEF_UDP_BUF_SIZE+1; i++) {
                 ser_10base_t_tx_10b(pio_serdes, sm_tx, tx_buf_udp[i]);
             }
-
-        } else {
-            // Sending NLP Pulse (Pulse width = 100ns)
-            ser_10base_t_tx_10b(pio_serdes, sm_tx, 0x0000000A);
         }
 
-        if (sfd_det) {
-            sfd_det = false;
+        // for RX Debug
+        if (multicore_fifo_rvalid()) {
             sfd_cnt++;
-            printf("SFD[%06d] shift:%d\r\n", sfd_cnt, shift_val);
+            printf("SFD[%06d] shift:%d\r\n", sfd_cnt, multicore_fifo_pop_blocking());
         }
-
-        sleep_ms(20);
     }
+
 }
 
 
@@ -119,7 +127,8 @@ int main() {
 static void __time_critical_func(rx_main)(void) {
     uint32_t rx_buf;
     uint32_t rx_buf_old;
-    uint32_t buf_shift;
+    bool sfd_det;
+    uint32_t shift_val;
     
     for (;;) {
         rx_buf = pio_sm_get_blocking(pio_serdes, sm_rx);
@@ -160,6 +169,11 @@ static void __time_critical_func(rx_main)(void) {
         if ( 0xd5555555 == (rx_buf <<  1) + (rx_buf_old >> 31) ) { shift_val = 31; sfd_det = true; }
 
         rx_buf_old = rx_buf;
+
+        if (sfd_det) {
+            sfd_det = false;
+            multicore_fifo_push_blocking(shift_val);
+        }
 
         gpio_put(HW_PINNUM_OUT1, 0);
 
