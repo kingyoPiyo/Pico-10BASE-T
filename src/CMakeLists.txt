@@ -9,6 +9,7 @@ pico_sdk_init()
 add_executable(${target_name})
 
 pico_generate_pio_header(${target_name} ${CMAKE_CURRENT_LIST_DIR}/ser_10base_t.pio)
+pico_generate_pio_header(${target_name} ${CMAKE_CURRENT_LIST_DIR}/des_10base_t.pio)
 
 target_sources(${target_name} PRIVATE
     main.c
@@ -19,6 +20,7 @@ target_link_libraries(${target_name} PRIVATE
     pico_stdlib
     hardware_pio
     hardware_irq
+    pico_multicore
     )
 
 # enable usb output, disable uart output

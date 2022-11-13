@@ -10,10 +10,23 @@
 #include "udp.h"
 #include "hardware/pio.h"
 #include "ser_10base_t.pio.h"
+#include "des_10base_t.pio.h"
+#include "pico/multicore.h"
 
 #define HW_PINNUM_LED0      (25)    // Pico onboard LED
+#define HW_PINNUM_RXP       (18)    // Ethernet RX+
+#define HW_PINNUM_OUT0      (1)     // SMA OUT0 for Debug
+#define HW_PINNUM_OUT1      (0)     // SMA OUT0 for Debug
+
+static void rx_main(void);
 
 static struct repeating_timer timer;
+
+static PIO pio_serdes = pio0;
+static uint sm_tx = 0;
+static uint sm_rx = 1;
+volatile static bool sfd_det;
+
 
 // Timer interrupt (L-tika)
 static bool repeating_timer_callback(struct repeating_timer *t) {
@@ -31,9 +44,11 @@ int main() {
     uint8_t udp_payload[DEF_UDP_PAYLOAD_SIZE] = {0};
 
     uint offset;
-    PIO pio_ser_wr = pio0;
-    uint sm0 = 0;
+
     uint32_t lp_cnt = 0;
+    uint32_t sfd_cnt = 0;
+
+    set_sys_clock_khz(240000, true);    // Over clock 240MHz
 
     stdio_init_all();
     udp_init();
@@ -47,17 +62,26 @@ int main() {
 
     // 10BASE-T Serializer PIO init
     // Pin numbers must be sequential. (use pin16, 17)
-    offset = pio_add_program(pio_ser_wr, &ser_10base_t_program);
-    ser_10base_t_program_init(pio_ser_wr, sm0, offset, 16);
+    offset = pio_add_program(pio_serdes, &ser_10base_t_program);
+    ser_10base_t_program_init(pio_serdes, sm_tx, offset, 16);
 
 
     // Wait for Link up....
     for (uint32_t i = 0; i < 100; i++) {
         // Sending NLP Pulse (Pulse width = 100ns)
-        ser_10base_t_tx_10b(pio_ser_wr, sm0, 0x0000000A);
+        ser_10base_t_tx_10b(pio_serdes, sm_tx, 0x0000000A);
         // NLP interval = 16ms +/- 8ms
         sleep_ms(20);
     }
+
+    
+    // RX Test
+    gpio_init(HW_PINNUM_RXP);   gpio_set_dir(HW_PINNUM_RXP, GPIO_IN);       // Ethernet RX+
+    gpio_init(HW_PINNUM_OUT0);  gpio_set_dir(HW_PINNUM_OUT0, GPIO_OUT);     // SMA Out for Debug
+    gpio_init(HW_PINNUM_OUT1);  gpio_set_dir(HW_PINNUM_OUT1, GPIO_OUT);     // SMA Out for Debug
+    offset = pio_add_program(pio_serdes, &des_10base_t_program);
+    des_10base_t_program_init(pio_serdes, sm_rx, offset, HW_PINNUM_RXP, HW_PINNUM_OUT0);
+    multicore_launch_core1(rx_main);
 
 
     // Send packets every about 200ms.
@@ -69,14 +93,54 @@ int main() {
             sprintf(udp_payload, "Hello World!! Raspico 10BASE-T !! lp_cnt:%d", lp_cnt++);
             udp_packet_gen_10base(tx_buf_udp, udp_payload);
             for (uint32_t i = 0; i < DEF_UDP_BUF_SIZE+1; i++) {
-                ser_10base_t_tx_10b(pio_ser_wr, sm0, tx_buf_udp[i]);
+                ser_10base_t_tx_10b(pio_serdes, sm_tx, tx_buf_udp[i]);
             }
 
         } else {
             // Sending NLP Pulse (Pulse width = 100ns)
-            ser_10base_t_tx_10b(pio_ser_wr, sm0, 0x0000000A);
+            ser_10base_t_tx_10b(pio_serdes, sm_tx, 0x0000000A);
         }
-        
+
+        if (sfd_det) {
+            sfd_det = false;
+            sfd_cnt++;
+            printf("\r\nSFD[%06d] ", sfd_cnt);
+        }
+
         sleep_ms(20);
+    }
+}
+
+
+// Rx Process
+static void rx_main() {
+    PIO pio_serdes = pio0;
+    uint sm_rx = 1;
+
+    uint32_t rx_buf;
+    uint32_t rx_buf_old;
+    uint32_t shift_val;
+    uint32_t buf_shift;
+
+    for (;;) {
+        rx_buf = pio_sm_get_blocking(pio_serdes, sm_rx);
+
+        gpio_put(HW_PINNUM_OUT1, 1);
+
+        // Search SFD
+        for (int i = 0; i < 32; i++) {
+         buf_shift = (rx_buf << (32 - i)) + (rx_buf_old >> i);
+            if (buf_shift == 0xd5555555) {
+                shift_val = i;
+                sfd_det = true;
+                break;
+            }
+        }
+        rx_buf_old = rx_buf;
+
+
+        gpio_put(HW_PINNUM_OUT1, 0);
+
+        //printf("%08x", rx_buf);
     }
 }
