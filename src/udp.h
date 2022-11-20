@@ -15,10 +15,10 @@
 #define DEF_IP_ADR_SRC3         (37)
 #define DEF_IP_ADR_SRC4         (24)
 
-#define DEF_IP_DST_DST1         (192)               // Destination IP Address
-#define DEF_IP_DST_DST2         (168)
-#define DEF_IP_DST_DST3         (37)
-#define DEF_IP_DST_DST4         (19)
+#define DEF_IP_ADR_DST1         (192)               // Destination IP Address
+#define DEF_IP_ADR_DST2         (168)
+#define DEF_IP_ADR_DST3         (37)
+#define DEF_IP_ADR_DST4         (19)
 
 // UDP Header
 #define DEF_UDP_SRC_PORTNUM     (1234)

@@ -63,7 +63,7 @@ void udp_packet_gen_10base(uint32_t *buf, uint8_t *udp_payload) {
 
     // Calculate the ip check sum
     ip_chk_sum1 = 0x0000C512 + ip_identifier + ip_total_len + (DEF_IP_ADR_SRC1 << 8) + DEF_IP_ADR_SRC2 + (DEF_IP_ADR_SRC3 << 8) + DEF_IP_ADR_SRC4 +
-                  (DEF_IP_DST_DST1 << 8) + DEF_IP_DST_DST2 + (DEF_IP_DST_DST3 << 8) + DEF_IP_DST_DST4;
+                  (DEF_IP_ADR_DST1 << 8) + DEF_IP_ADR_DST2 + (DEF_IP_ADR_DST3 << 8) + DEF_IP_ADR_DST4;
     ip_chk_sum2 = (ip_chk_sum1 & 0x0000FFFF) + (ip_chk_sum1 >> 16);
     ip_chk_sum3 = ~((ip_chk_sum2 & 0x0000FFFF) + (ip_chk_sum2 >> 16));
 
@@ -113,10 +113,10 @@ void udp_packet_gen_10base(uint32_t *buf, uint8_t *udp_payload) {
     data_8b[idx++] = DEF_IP_ADR_SRC3;
     data_8b[idx++] = DEF_IP_ADR_SRC4;
     // IP Destination
-    data_8b[idx++] = DEF_IP_DST_DST1;
-    data_8b[idx++] = DEF_IP_DST_DST2;
-    data_8b[idx++] = DEF_IP_DST_DST3;
-    data_8b[idx++] = DEF_IP_DST_DST4;
+    data_8b[idx++] = DEF_IP_ADR_DST1;
+    data_8b[idx++] = DEF_IP_ADR_DST2;
+    data_8b[idx++] = DEF_IP_ADR_DST3;
+    data_8b[idx++] = DEF_IP_ADR_DST4;
     // UDP header
     data_8b[idx++] = (DEF_UDP_SRC_PORTNUM >>  8) & 0xFF;
     data_8b[idx++] = (DEF_UDP_SRC_PORTNUM >>  0) & 0xFF;
