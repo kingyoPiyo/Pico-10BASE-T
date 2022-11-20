@@ -13,7 +13,9 @@ pico_generate_pio_header(${target_name} ${CMAKE_CURRENT_LIST_DIR}/des_10base_t.p
 
 target_sources(${target_name} PRIVATE
     main.c
+    eth.c
     udp.c
+    arp.c
     )
 
 target_link_libraries(${target_name} PRIVATE

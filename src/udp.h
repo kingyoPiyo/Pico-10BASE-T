@@ -5,20 +5,6 @@
 
 // Buffer size config
 #define DEF_UDP_PAYLOAD_SIZE    (64)
-// Ethernet
-#define DEF_ETH_DST_MAC         (0xFFFFFFFFFFFF)    // Destination MAC Address
-#define DEF_ETH_SRC_MAC         (0x123456789ABC)    // RasPico MAC Address
-
-// IP Header
-#define DEF_IP_ADR_SRC1         (192)               // RasPico IP Address
-#define DEF_IP_ADR_SRC2         (168)
-#define DEF_IP_ADR_SRC3         (37)
-#define DEF_IP_ADR_SRC4         (24)
-
-#define DEF_IP_DST_DST1         (192)               // Destination IP Address
-#define DEF_IP_DST_DST2         (168)
-#define DEF_IP_DST_DST3         (37)
-#define DEF_IP_DST_DST4         (19)
 
 // UDP Header
 #define DEF_UDP_SRC_PORTNUM     (1234)

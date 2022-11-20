@@ -1,4 +1,4 @@
-#include "udp.h"
+#include "arp.h"
 #include "system.h"
 
 // Manchester table
@@ -28,18 +28,10 @@ const static uint32_t tbl_manchester[256] = {
 
 
 static uint32_t crc_table[256];
-static uint8_t  data_8b[DEF_UDP_BUF_SIZE];
-static uint16_t ip_identifier = 0;
-static uint32_t ip_chk_sum1, ip_chk_sum2, ip_chk_sum3;
+static uint8_t  data_8b[DEF_ARP_BUF_SIZE];
 
 // Etherent Frame
-static const uint16_t  eth_type            = 0x0800; // IP
-
-// IPv4 Header
-static const uint8_t   ip_version          = 4;      // IP v4
-static const uint8_t   ip_head_len         = 5;
-static const uint8_t   ip_type_of_service  = 0;
-static const uint16_t  ip_total_len        = 20 + DEF_UDP_LEN;
+static const uint16_t  eth_type            = 0x0806; // ARP
 
 
 static void _make_crc_table(void) {
@@ -53,23 +45,14 @@ static void _make_crc_table(void) {
 }
 
 
-void udp_init(void) {
+void arp_init(void) {
     _make_crc_table();
 }
 
 
-void udp_packet_gen_10base(uint32_t *buf, uint8_t *udp_payload) {
-    uint16_t udp_chksum = 0;
-    uint32_t i, j, idx = 0, ans;
-
-    // Calculate the ip check sum
-    ip_chk_sum1 = 0x0000C512 + ip_identifier + ip_total_len + (DEF_SYS_PICO_IP1 << 8) + DEF_SYS_PICO_IP2 + (DEF_SYS_PICO_IP3 << 8) + DEF_SYS_PICO_IP4 +
-                  (DEF_SYS_UDP_DST_IP1 << 8) + DEF_SYS_UDP_DST_IP2 + (DEF_SYS_UDP_DST_IP3 << 8) + DEF_SYS_UDP_DST_IP4;
-    ip_chk_sum2 = (ip_chk_sum1 & 0x0000FFFF) + (ip_chk_sum1 >> 16);
-    ip_chk_sum3 = ~((ip_chk_sum2 & 0x0000FFFF) + (ip_chk_sum2 >> 16));
-
-    //==========================================================================
-    ip_identifier++;
+void arp_packet_gen_10base(uint32_t *buf, uint64_t dst_mac, uint32_t sender_ip) {
+    uint32_t i = 0; 
+    uint32_t idx = 0;
 
     // Preamble
     for (i = 0; i < 7; i++) {
@@ -78,12 +61,12 @@ void udp_packet_gen_10base(uint32_t *buf, uint8_t *udp_payload) {
     // SFD
     data_8b[idx++] = 0xD5;
     // Destination MAC Address
-    data_8b[idx++] = (DEF_SYS_UDP_DST_MAC >> 40) & 0xFF;
-    data_8b[idx++] = (DEF_SYS_UDP_DST_MAC >> 32) & 0xFF;
-    data_8b[idx++] = (DEF_SYS_UDP_DST_MAC >> 24) & 0xFF;
-    data_8b[idx++] = (DEF_SYS_UDP_DST_MAC >> 16) & 0xFF;
-    data_8b[idx++] = (DEF_SYS_UDP_DST_MAC >>  8) & 0xFF;
-    data_8b[idx++] = (DEF_SYS_UDP_DST_MAC >>  0) & 0xFF;
+    data_8b[idx++] = (dst_mac >> 40) & 0xFF;
+    data_8b[idx++] = (dst_mac >> 32) & 0xFF;
+    data_8b[idx++] = (dst_mac >> 24) & 0xFF;
+    data_8b[idx++] = (dst_mac >> 16) & 0xFF;
+    data_8b[idx++] = (dst_mac >>  8) & 0xFF;
+    data_8b[idx++] = (dst_mac >>  0) & 0xFF;
     // Source MAC Address
     data_8b[idx++] = (DEF_SYS_PICO_MAC >> 40) & 0xFF;
     data_8b[idx++] = (DEF_SYS_PICO_MAC >> 32) & 0xFF;
@@ -94,42 +77,57 @@ void udp_packet_gen_10base(uint32_t *buf, uint8_t *udp_payload) {
     // Ethernet Type
     data_8b[idx++] = (eth_type >>  8) & 0xFF;
     data_8b[idx++] = (eth_type >>  0) & 0xFF;
-    // IP Header
-    data_8b[idx++] = (ip_version << 4) | (ip_head_len & 0x0F);
-    data_8b[idx++] = (ip_type_of_service >>  0) & 0xFF;
-    data_8b[idx++] = (ip_total_len >>  8) & 0xFF;
-    data_8b[idx++] = (ip_total_len >>  0) & 0xFF;
-    data_8b[idx++] = (ip_identifier >>  8) & 0xFF;
-    data_8b[idx++] = (ip_identifier >>  0) & 0xFF;
+
+    /////// ARP
+    // Hardware type = Ethernet
     data_8b[idx++] = 0x00;
+    data_8b[idx++] = 0x01;
+
+    // Protocol type = IPv4
+    data_8b[idx++] = 0x08;
     data_8b[idx++] = 0x00;
-    data_8b[idx++] = 0x80;
-    data_8b[idx++] = 0x11;
-    // IP Check SUM
-    data_8b[idx++] = (ip_chk_sum3 >>  8) & 0xFF;
-    data_8b[idx++] = (ip_chk_sum3 >>  0) & 0xFF;
-    // IP Source
+
+    // Hardware size = 6
+    data_8b[idx++] = 0x06;
+
+    // Protocol size = 4
+    data_8b[idx++] = 0x04;
+
+    // OPcode = 2(Reply)
+    data_8b[idx++] = 0x00;
+    data_8b[idx++] = 0x02;
+
+    // Sender MAC address
+    data_8b[idx++] = (DEF_SYS_PICO_MAC >> 40) & 0xFF;
+    data_8b[idx++] = (DEF_SYS_PICO_MAC >> 32) & 0xFF;
+    data_8b[idx++] = (DEF_SYS_PICO_MAC >> 24) & 0xFF;
+    data_8b[idx++] = (DEF_SYS_PICO_MAC >> 16) & 0xFF;
+    data_8b[idx++] = (DEF_SYS_PICO_MAC >>  8) & 0xFF;
+    data_8b[idx++] = (DEF_SYS_PICO_MAC >>  0) & 0xFF;
+
+    // Sender IP address
     data_8b[idx++] = DEF_SYS_PICO_IP1;
     data_8b[idx++] = DEF_SYS_PICO_IP2;
     data_8b[idx++] = DEF_SYS_PICO_IP3;
     data_8b[idx++] = DEF_SYS_PICO_IP4;
-    // IP Destination
-    data_8b[idx++] = DEF_SYS_UDP_DST_IP1;
-    data_8b[idx++] = DEF_SYS_UDP_DST_IP2;
-    data_8b[idx++] = DEF_SYS_UDP_DST_IP3;
-    data_8b[idx++] = DEF_SYS_UDP_DST_IP4;
-    // UDP header
-    data_8b[idx++] = (DEF_UDP_SRC_PORTNUM >>  8) & 0xFF;
-    data_8b[idx++] = (DEF_UDP_SRC_PORTNUM >>  0) & 0xFF;
-    data_8b[idx++] = (DEF_UDP_DST_PORTNUM >>  8) & 0xFF;
-    data_8b[idx++] = (DEF_UDP_DST_PORTNUM >>  0) & 0xFF;
-    data_8b[idx++] = (DEF_UDP_LEN >>  8) & 0xFF;
-    data_8b[idx++] = (DEF_UDP_LEN >>  0) & 0xFF;
-    data_8b[idx++] = (udp_chksum >>  8) & 0xFF;
-    data_8b[idx++] = (udp_chksum >>  0) & 0xFF;
-    // UDP payload
-    for (i = 0; i < DEF_UDP_PAYLOAD_SIZE; i++) {
-        data_8b[idx++] = udp_payload[i];
+    
+    // Target MAC address
+    data_8b[idx++] = (dst_mac >> 40) & 0xFF;
+    data_8b[idx++] = (dst_mac >> 32) & 0xFF;
+    data_8b[idx++] = (dst_mac >> 24) & 0xFF;
+    data_8b[idx++] = (dst_mac >> 16) & 0xFF;
+    data_8b[idx++] = (dst_mac >>  8) & 0xFF;
+    data_8b[idx++] = (dst_mac >>  0) & 0xFF;
+    
+    // Target IP address
+    data_8b[idx++] = (sender_ip >> 24) & 0xff;
+    data_8b[idx++] = (sender_ip >> 16) & 0xff;
+    data_8b[idx++] = (sender_ip >> 8) & 0xff;
+    data_8b[idx++] = (sender_ip >> 0) & 0xff;
+
+    // Padding 18 Bytes
+    for (i = 0; i < 18; i++) {
+        data_8b[idx++] = 0x00;
     }
 
     //==========================================================================
@@ -149,7 +147,7 @@ void udp_packet_gen_10base(uint32_t *buf, uint8_t *udp_payload) {
     //==========================================================================
     // Manchester Encoder
     //==========================================================================
-    for (i = 0; i < DEF_UDP_BUF_SIZE; i++) {
+    for (i = 0; i < DEF_ARP_BUF_SIZE; i++) {
         buf[i] = tbl_manchester[data_8b[i]];
     }
     // TP_IDL
