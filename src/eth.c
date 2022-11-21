@@ -23,6 +23,10 @@
 #define DEF_ARPOPC_REQUEST      (0x0001)        // ARP Opcode : Request
 #define DEF_ARPOPC_REPLY        (0x0002)        // ARP Opcode : Reply
 
+#define DEF_IP_PROTOCOL_ICMP    (0x01)
+#define DEF_IP_PROTOCOL_TCP     (0x06)
+#define DEF_IP_PROTOCOL_UDP     (0x11)
+
 
 // Global
 static PIO pio_serdes = pio0;
@@ -89,7 +93,7 @@ void eth_main(void) {
         uint64_t eth_src = ((((uint64_t)gsram[1]) << 32) + (gsram[2])) & 0xFFFFFFFFFFFF;
         uint16_t eth_type = gsram[3] >> 16;
         uint32_t arp_sender_ip = gsram[7];
-        uint32_t arp_target_ip = ((gsram[9] & 0xFFFF) << 16) + (gsram[10] >> 16);
+        uint32_t arp_target_ip = (gsram[9] << 16) + (gsram[10] >> 16);
         uint16_t arp_opcode = gsram[5] >> 16;
 
         if (eth_type == DEF_ETHTYPE_ARP) {
@@ -100,10 +104,27 @@ void eth_main(void) {
                         ser_10base_t_tx_10b(pio_serdes, sm_tx, tx_buf_arp[i]);
                     }
                     
-                    printf("SFD[%06d, %02d] ", sfd_cnt, fifo_data);
-                    printf("Who has %d.%d.%d.%d? ", (gsram[9] >> 8) & 0xff, (gsram[9] >> 0) & 0xff, (gsram[10] >> 24) & 0xff, (gsram[10] >> 16) & 0xff);
-                    printf("Tell %d.%d.%d.%d \r\n", (gsram[7] >> 24) & 0xff, (gsram[7] >> 16) & 0xff, (gsram[7] >> 8) & 0xff, (gsram[7] >> 0) & 0xff);
+                    //printf("SFD[%06d, %02d] ", sfd_cnt, fifo_data);
+                    printf("[ARP] ");
+                    printf("Who has %d.%d.%d.%d? ", (arp_target_ip >> 24), (arp_target_ip >> 16) & 0xFF, (arp_target_ip >> 8) & 0xFF, (arp_target_ip & 0xFF));
+                    printf("Tell %d.%d.%d.%d \r\n", (arp_sender_ip >> 24), (arp_sender_ip >> 16) & 0xFF, (arp_sender_ip >> 8) & 0xFF, (arp_sender_ip & 0xFF));
                 }
+            }
+        } else if (eth_type == DEF_ETHTYPE_IPV4) {
+            uint16_t ip_len = gsram[4] >> 16;
+            uint16_t ip_identification = gsram[4] & 0xFFFF;
+            uint8_t ip_ttl = (gsram[5] >> 8) & 0xFF;
+            uint8_t ip_protocol = gsram[5] & 0xFF;
+            uint32_t ip_src_adr = (gsram[6] << 16) + (gsram[7] >> 16);
+            uint32_t ip_dst_adr = (gsram[7] << 16) + (gsram[8] >> 16);
+
+            // ~~~ TODO ~~~
+
+            if (ip_protocol == DEF_IP_PROTOCOL_ICMP) {
+                printf("[ICMP] ");
+                printf("src:%d.%d.%d.%d ", (ip_src_adr >> 24), (ip_src_adr >> 16) & 0xFF, (ip_src_adr >> 8) & 0xFF, (ip_src_adr & 0xFF));
+                printf("dst:%d.%d.%d.%d ", (ip_dst_adr >> 24), (ip_dst_adr >> 16) & 0xFF, (ip_dst_adr >> 8) & 0xFF, (ip_dst_adr & 0xFF));
+                printf("\r\n");
             }
         }
     }
