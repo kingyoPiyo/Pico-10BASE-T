@@ -19,7 +19,7 @@
 #define HW_PINNUM_OUT1          (0)             // SMA OUT0 for Debug
 #define DEF_NFLP_INTERVAL_US    (16000)         // NLP/FLP interval = 16ms +/- 8ms
 #define DEF_DMY_INTERVAL_US     (1000000)       // Dummy Data send interval
-#define DEF_LINK_TIMEOUT_US     (1000000)       // Link down time out
+#define DEF_LINK_TIMEOUT_US     (400000)        // Link down time out
 
 #define DEF_ETHTYPE_IPV4        (0x0800)        // EtherType : IPv4
 #define DEF_ETHTYPE_ARP         (0x0806)        // EtherType : ARP
