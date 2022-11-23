@@ -12,10 +12,12 @@
 
 
 // Define
+#define DEF_10BASET_FULL_ENABLE                 // Enable 10BASE-T Full Duplex
+
 #define HW_PINNUM_RXP           (18)            // Ethernet RX+
 #define HW_PINNUM_OUT0          (1)             // SMA OUT0 for Debug
 #define HW_PINNUM_OUT1          (0)             // SMA OUT0 for Debug
-#define DEF_NLP_INTERVAL_US     (16000)         // NLP interval = 16ms +/- 8ms
+#define DEF_NFLP_INTERVAL_US    (16000)         // NLP/FLP interval = 16ms +/- 8ms
 #define DEF_DMY_INTERVAL_US     (1000000)       // Dummy Data send interval
 
 #define DEF_ETHTYPE_IPV4        (0x0800)        // EtherType : IPv4
@@ -45,6 +47,7 @@ static const uint32_t pico_ip_addr = (DEF_SYS_PICO_IP1 << 24) +
 // Prototype
 static void __time_critical_func(_rx_isr)(void);
 static bool _send_nlp(void);
+static bool _send_flp(uint16_t data);
 static bool _send_udp(void);
 
 
@@ -60,9 +63,12 @@ void eth_init(void) {
     ser_10base_t_program_init(pio_serdes, sm_tx, offset, 16);
 
     // Wait for Link up....
-    for (uint32_t i = 0; i < 100; i++) {
-        ser_10base_t_tx_10b(pio_serdes, sm_tx, 0x0000000A);
-        sleep_ms(16);
+    for (uint32_t i = 0; i < 200;) {
+#ifdef DEF_10BASET_FULL_ENABLE
+        if (_send_flp(0x8602)) i++;   // 10BASE-T Full, ACK = 1
+#else
+        if (_send_nlp()) i++;
+#endif
     }
     
     // RX
@@ -138,7 +144,7 @@ bool _send_nlp(void) {
     bool ret = false;
 
     // Sending NLP Pulse (Pulse width = 100ns)
-    if ((time_now - time_nlp) > DEF_NLP_INTERVAL_US) {
+    if ((time_now - time_nlp) > DEF_NFLP_INTERVAL_US) {
         time_nlp = time_now;
         ser_10base_t_tx_10b(pio_serdes, sm_tx, 0x0000000A);
         ret = true;
@@ -146,6 +152,33 @@ bool _send_nlp(void) {
 
     return ret;
 }
+
+
+// FLP
+bool _send_flp(uint16_t data) {
+    uint32_t time_now = time_us_32();
+    static uint32_t time_flp = 0;
+    bool ret = false;
+
+    if ((time_now - time_flp) > DEF_NFLP_INTERVAL_US) {
+        time_flp = time_now;
+        for (int i = 0; i < 16; i++) {
+            // Clock
+            ser_10base_t_tx_10b(pio_serdes, sm_tx, 0x0000000A);
+            sleep_us(62);
+            // Data
+            if ((data << i) & 0x8000) {
+                ser_10base_t_tx_10b(pio_serdes, sm_tx, 0x0000000A);
+            }
+            sleep_us(62);
+        }
+        ser_10base_t_tx_10b(pio_serdes, sm_tx, 0x0000000A);
+        ret = true;
+    }
+
+    return ret;
+}
+
 
 // UDP Test
 bool _send_udp(void) {
