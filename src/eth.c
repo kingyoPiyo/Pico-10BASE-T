@@ -34,7 +34,7 @@
 static PIO pio_serdes = pio0;
 static uint sm_tx = 0;
 static uint sm_rx = 1;
-volatile static uint32_t gsram[512];
+volatile static uint32_t gsram[4][512]; // RX data buffer for Core0 and 1
 static uint32_t tx_buf_udp[DEF_UDP_BUF_SIZE+1] = {0};
 static uint32_t tx_buf_arp[DEF_ARP_BUF_SIZE+1] = {0};
 
@@ -92,15 +92,18 @@ void eth_main(void) {
 
     // for RX Debug
     if (multicore_fifo_rvalid()) {
-        int fifo_data = multicore_fifo_pop_blocking();
+        int pop_data = multicore_fifo_pop_blocking();  // index num
+        int slot = pop_data & 0x3; // 0 ~ 3
         sfd_cnt++;
 
-        uint64_t eth_dst = ((((uint64_t)gsram[0]) << 16) + (gsram[1] >> 16)) & 0xFFFFFFFFFFFF;
-        uint64_t eth_src = ((((uint64_t)gsram[1]) << 32) + (gsram[2])) & 0xFFFFFFFFFFFF;
-        uint16_t eth_type = gsram[3] >> 16;
-        uint32_t arp_sender_ip = gsram[7];
-        uint32_t arp_target_ip = (gsram[9] << 16) + (gsram[10] >> 16);
-        uint16_t arp_opcode = gsram[5] >> 16;
+        //printf("slot:%d, size:%d\r\n", slot, pop_data >> 2);
+
+        uint64_t eth_dst = ((((uint64_t)gsram[slot][0]) << 16) + (gsram[slot][1] >> 16)) & 0xFFFFFFFFFFFF;
+        uint64_t eth_src = ((((uint64_t)gsram[slot][1]) << 32) + (gsram[slot][2])) & 0xFFFFFFFFFFFF;
+        uint16_t eth_type = gsram[slot][3] >> 16;
+        uint32_t arp_sender_ip = gsram[slot][7];
+        uint32_t arp_target_ip = (gsram[slot][9] << 16) + (gsram[slot][10] >> 16);
+        uint16_t arp_opcode = gsram[slot][5] >> 16;
 
         if (eth_type == DEF_ETHTYPE_ARP) {
             if (arp_opcode == DEF_ARPOPC_REQUEST) {
@@ -110,19 +113,19 @@ void eth_main(void) {
                         ser_10base_t_tx_10b(pio_serdes, sm_tx, tx_buf_arp[i]);
                     }
                     
-                    //printf("SFD[%06d, %02d] ", sfd_cnt, fifo_data);
+                    //printf("SFD[%06d, %02d] ", sfd_cnt, pop_data);
                     printf("[ARP] ");
                     printf("Who has %d.%d.%d.%d? ", (arp_target_ip >> 24), (arp_target_ip >> 16) & 0xFF, (arp_target_ip >> 8) & 0xFF, (arp_target_ip & 0xFF));
                     printf("Tell %d.%d.%d.%d \r\n", (arp_sender_ip >> 24), (arp_sender_ip >> 16) & 0xFF, (arp_sender_ip >> 8) & 0xFF, (arp_sender_ip & 0xFF));
                 }
             }
         } else if (eth_type == DEF_ETHTYPE_IPV4) {
-            uint16_t ip_len = gsram[4] >> 16;
-            uint16_t ip_identification = gsram[4] & 0xFFFF;
-            uint8_t ip_ttl = (gsram[5] >> 8) & 0xFF;
-            uint8_t ip_protocol = gsram[5] & 0xFF;
-            uint32_t ip_src_adr = (gsram[6] << 16) + (gsram[7] >> 16);
-            uint32_t ip_dst_adr = (gsram[7] << 16) + (gsram[8] >> 16);
+            uint16_t ip_len = gsram[slot][4] >> 16;
+            uint16_t ip_identification = gsram[slot][4] & 0xFFFF;
+            uint8_t ip_ttl = (gsram[slot][5] >> 8) & 0xFF;
+            uint8_t ip_protocol = gsram[slot][5] & 0xFF;
+            uint32_t ip_src_adr = (gsram[slot][6] << 16) + (gsram[slot][7] >> 16);
+            uint32_t ip_dst_adr = (gsram[slot][7] << 16) + (gsram[slot][8] >> 16);
 
             // ~~~ TODO ~~~
 
@@ -208,15 +211,16 @@ static void __time_critical_func(_rx_isr)(void) {
     uint32_t rx_buf_old;
     bool sfd_det;
     uint8_t shift_num;
-    uint32_t sram_tmp[512];
     uint32_t index = 0;
-    uint32_t tmp;
+    uint32_t slot = 0;   // 0~3
     
     while(1) {
         rx_buf = pio_sm_get_blocking(pio_serdes, sm_rx);
 
-        gpio_put(HW_PINNUM_OUT1, 1);
+        gpio_put(HW_PINNUM_OUT1, 1);    // For CPU usage monitor
 
+        // Search for SFD pattern
+        sfd_det = false;
         if ( 0xd5555555 == rx_buf_old                          ) { shift_num =  0; sfd_det = true; }
         if ( 0xd5555555 == (rx_buf << 31) + (rx_buf_old >>  1) ) { shift_num =  1; sfd_det = true; }
         if ( 0xd5555555 == (rx_buf << 30) + (rx_buf_old >>  2) ) { shift_num =  2; sfd_det = true; }
@@ -251,20 +255,17 @@ static void __time_critical_func(_rx_isr)(void) {
         if ( 0xd5555555 == (rx_buf <<  1) + (rx_buf_old >> 31) ) { shift_num = 31; sfd_det = true; }
     
         if (sfd_det) {
-            sfd_det = false;
-            for (int i = 0; i < index; i++) {
-                gsram[i] = sram_tmp[i];
-            }
+            multicore_fifo_push_blocking((index << 2) + slot);  // Notify for Core0
+            slot = (slot + 1) & 0x3;
             index = 0;
-            multicore_fifo_push_blocking(shift_num);
         } else {
-            tmp = (rx_buf <<  (32 - shift_num)) + (rx_buf_old >> shift_num);
-            sram_tmp[index] = (tmp << 24) | ((tmp & 0x0000FF00) << 8) | ((tmp & 0x00FF0000) >> 8) | (tmp >> 24);
+            uint32_t tmp = (rx_buf <<  (32 - shift_num)) + (rx_buf_old >> shift_num);
+            gsram[slot][index] = (tmp << 24) | ((tmp & 0x0000FF00) << 8) | ((tmp & 0x00FF0000) >> 8) | (tmp >> 24);
             index = (index + 1) & 0x1FF;
         }
 
         rx_buf_old = rx_buf;
 
-        gpio_put(HW_PINNUM_OUT1, 0);
+        gpio_put(HW_PINNUM_OUT1, 0);    // For CPU usage monitor
     }
 }
