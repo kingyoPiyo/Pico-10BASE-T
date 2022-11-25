@@ -6,6 +6,7 @@
 #include "system.h"
 #include "eth.h"
 #include "arp.h"
+#include "icmp.h"
 #include "udp.h"
 #include "ser_10base_t.pio.h"
 #include "des_10base_t.pio.h"
@@ -38,6 +39,7 @@ static uint sm_rx = 1;
 volatile static uint32_t gsram[4][512]; // RX data buffer for Core0 and 1
 static uint32_t tx_buf_udp[DEF_UDP_BUF_SIZE+1] = {0};
 static uint32_t tx_buf_arp[DEF_ARP_BUF_SIZE+1] = {0};
+static uint32_t tx_buf_icmp[DEF_ICMP_BUF_SIZE+1] = {0};
 
 static const uint32_t pico_ip_addr = (DEF_SYS_PICO_IP1 << 24) +
                                      (DEF_SYS_PICO_IP2 << 16) +
@@ -57,6 +59,7 @@ void eth_init(void) {
     
     udp_init();
     arp_init();
+    icmp_init();
 
     // 10BASE-T Serializer PIO init
     // Pin numbers must be sequential. (use pin16, 17)
@@ -128,12 +131,17 @@ void eth_main(void) {
             uint32_t ip_src_adr = (gsram[slot][6] << 16) + (gsram[slot][7] >> 16);
             uint32_t ip_dst_adr = (gsram[slot][7] << 16) + (gsram[slot][8] >> 16);
 
-            // ~~~ TODO ~~~
+            if ((ip_protocol == DEF_IP_PROTOCOL_ICMP) && (ip_len < 1500)) {
+                // ICMP Echo test
+                uint32_t icmp_tx_size = icmp_packet_gen_10base(tx_buf_icmp, gsram[slot]);
+                for (uint32_t i = 0; i < icmp_tx_size; i++) {
+                    ser_10base_t_tx_10b(pio_serdes, sm_tx, tx_buf_icmp[i]);
+                }
 
-            if (ip_protocol == DEF_IP_PROTOCOL_ICMP) {
                 printf("[ICMP] ");
                 printf("src:%d.%d.%d.%d ", (ip_src_adr >> 24), (ip_src_adr >> 16) & 0xFF, (ip_src_adr >> 8) & 0xFF, (ip_src_adr & 0xFF));
                 printf("dst:%d.%d.%d.%d ", (ip_dst_adr >> 24), (ip_dst_adr >> 16) & 0xFF, (ip_dst_adr >> 8) & 0xFF, (ip_dst_adr & 0xFF));
+                printf("ipv4_len:%d ", ip_len);
                 printf("\r\n");
             }
         }
@@ -211,6 +219,7 @@ static void __time_critical_func(_rx_isr)(void) {
     uint32_t rx_buf;
     uint32_t rx_buf_old;
     bool sfd_det;
+    bool ifg_en = false;
     uint8_t shift_num;
     uint32_t index = 0;
     uint32_t slot = 0;   // 0~3
@@ -259,8 +268,7 @@ static void __time_critical_func(_rx_isr)(void) {
             if ( 0xd5555555 == (rx_buf <<  1) + (rx_buf_old >> 31) ) { shift_num = 31; sfd_det = true; }
         
             if (sfd_det) {
-                multicore_fifo_push_blocking((index << 2) + slot);  // Notify for Core0
-                slot = (slot + 1) & 0x3;
+                ifg_en = true;
                 index = 0;
             } else {
                 uint32_t tmp = (rx_buf <<  (32 - shift_num)) + (rx_buf_old >> shift_num);
@@ -270,6 +278,13 @@ static void __time_critical_func(_rx_isr)(void) {
             rx_buf_old = rx_buf;
             ldm_timer = time_us_32();
             gpio_put(HW_PINNUM_OUT1, 0);    // For CPU usage monitor
+        }
+
+        // IFG
+        if ((time_us_32() - ldm_timer > 8) && ifg_en) {
+            ifg_en = false;
+            multicore_fifo_push_blocking((index << 2) + slot);  // Notify for Core0
+            slot = (slot + 1) & 0x3;
         }
 
         // Detect Link Down

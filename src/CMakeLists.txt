@@ -16,6 +16,7 @@ target_sources(${target_name} PRIVATE
     eth.c
     udp.c
     arp.c
+    icmp.c
     )
 
 target_link_libraries(${target_name} PRIVATE
