@@ -122,8 +122,8 @@ void arp_packet_gen_10base(uint32_t *buf, uint64_t dst_mac, uint32_t sender_ip) 
     // Target IP address
     data_8b[idx++] = (sender_ip >> 24) & 0xff;
     data_8b[idx++] = (sender_ip >> 16) & 0xff;
-    data_8b[idx++] = (sender_ip >> 8) & 0xff;
-    data_8b[idx++] = (sender_ip >> 0) & 0xff;
+    data_8b[idx++] = (sender_ip >>  8) & 0xff;
+    data_8b[idx++] = (sender_ip >>  0) & 0xff;
 
     // Padding 18 Bytes
     for (i = 0; i < 18; i++) {
