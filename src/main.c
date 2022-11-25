@@ -29,6 +29,8 @@ int main() {
     stdio_init_all();
     eth_init();
 
+    printf("[BOOT]\r\n");
+
     // Onboard LED tikatika~
     gpio_init(HW_PINNUM_LED0);
     gpio_set_dir(HW_PINNUM_LED0, GPIO_OUT);
