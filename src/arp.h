@@ -16,4 +16,4 @@
 void arp_init(void);
 void arp_packet_gen_10base(uint32_t *buf, uint64_t dst_mac, uint32_t sender_ip);
 
-#endif //__UDP_H__
+#endif //__ARP_H__
