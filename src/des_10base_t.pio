@@ -20,14 +20,14 @@
 
 start_of_0:            ; We are 0.25 bits into a 0 - signal is high
     wait 0 pin 0       ; Wait for the 1->0 transition - at this point we are 0.5 into the bit
-    in y, 1 [7]        ; Emit a 0, sleep 3/4 of a bit
+    in y, 1 [6]        ; Emit a 0, sleep 3/4 of a bit
     set pins, 0     ; Debug!!!
     jmp pin start_of_0 ; If signal is 1 again, it's another 0 bit, otherwise it's a 1
 
 .wrap_target
 start_of_1:            ; We are 0.25 bits into a 1 - signal is 1   
     wait 1 pin 0       ; Wait for the 0->1 transition - at this point we are 0.5 into the bit
-    in x, 1 [7]        ; Emit a 1, sleep 3/4 of a bit
+    in x, 1 [6]        ; Emit a 1, sleep 3/4 of a bit
     set pins, 1     ; Debug!!!
     jmp pin start_of_0 ; If signal is 0 again, it's another 1 bit otherwise it's a 0
 .wrap
