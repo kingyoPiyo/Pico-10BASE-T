@@ -5,7 +5,7 @@
 
 // == DMA settings ==
 // If 1, using DMA to copy payload and calculate CRC(FCS). 
-// Using DMA increases the processing speed of "udp_packet_gen_10base().
+// Using DMA increases the processing speed of "udp_packet_gen_10base()".
 // Performance example:
 //  ----------------------------------------------------
 //  Payload size [Byte]   use DMA[us]   not use DMA[us]
