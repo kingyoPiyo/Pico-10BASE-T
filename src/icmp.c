@@ -49,7 +49,7 @@ void icmp_init(void) {
     _make_crc_table();
 }
 
-uint8_t _icmp_get_data(uint32_t index, uint32_t *buf)
+static uint8_t _icmp_get_data(uint32_t index, volatile uint32_t *buf)
 {
     uint32_t index32 = ((index + 2) / 4) + 10;
     uint32_t pos = ((index + 2) % 4);
@@ -67,7 +67,7 @@ uint8_t _icmp_get_data(uint32_t index, uint32_t *buf)
 }
 
 
-uint32_t icmp_packet_gen_10base(uint32_t *buf, uint32_t *in_data) {
+uint32_t icmp_packet_gen_10base(uint32_t *buf, volatile uint32_t *in_data) {
     uint32_t i = 0; 
     uint32_t idx = 0;
 
@@ -130,8 +130,8 @@ uint32_t icmp_packet_gen_10base(uint32_t *buf, uint32_t *in_data) {
         ip_res_sum--;
     }
     ip_res_sum = ~(ip_res_sum - 0x4000);
-    data_8b[idx++] = (ip_res_sum >> 8) & 0xFF;  // Header checksum(TODO)
-    data_8b[idx++] = (ip_res_sum >> 0) & 0xFF;  // Header checksum(TODO)
+    data_8b[idx++] = (ip_res_sum >> 8) & 0xFF;  // Header checksum
+    data_8b[idx++] = (ip_res_sum >> 0) & 0xFF;  // Header checksum
 
     data_8b[idx++] = (ip_dst_adr >> 24) & 0xff;
     data_8b[idx++] = (ip_dst_adr >> 16) & 0xff;

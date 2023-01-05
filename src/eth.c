@@ -96,8 +96,8 @@ void eth_main(void) {
 
     // for RX Debug
     if (multicore_fifo_rvalid()) {
-        int pop_data = multicore_fifo_pop_blocking();  // index num
-        int slot = pop_data & 0x3; // 0 ~ 3
+        uint32_t pop_data = multicore_fifo_pop_blocking();  // index num
+        uint32_t slot = pop_data & 0x3; // 0 ~ 3
         sfd_cnt++;
 
         //printf("slot:%d, size:%d\r\n", slot, pop_data >> 2);
@@ -208,6 +208,7 @@ bool _send_udp(void) {
             ser_10base_t_tx_10b(pio_serdes, sm_tx, tx_buf_udp[i]);
         }
         ret = true;
+        sleep_us(10);   // IFG
     }
 
     return ret;
@@ -281,7 +282,7 @@ static void __time_critical_func(_rx_isr)(void) {
         }
 
         // IFG
-        if ((time_us_32() - ldm_timer > 8) && ifg_en) {
+        if ((time_us_32() - ldm_timer > 10) && ifg_en) {
             ifg_en = false;
             multicore_fifo_push_blocking((index << 2) + slot);  // Notify for Core0
             slot = (slot + 1) & 0x3;
