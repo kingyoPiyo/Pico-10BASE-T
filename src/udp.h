@@ -3,8 +3,23 @@
 
 #include <stdint.h>
 
+// == DMA settings ==
+// If 1, using DMA to copy payload and calculate CRC(FCS). 
+// Using DMA increases the processing speed of "udp_packet_gen_10base().
+// Performance example:
+//  ----------------------------------------------------
+//  Payload size [Byte]   use DMA[us]   not use DMA[us]
+//  ----------------------------------------------------
+//                   64          13.8              26.2
+//                  512          60.4             137.3
+//                 1472         160.2             375.4
+//  ----------------------------------------------------
+#ifndef UDP_DMA_EN
+#define UDP_DMA_EN 1
+#endif
+
 // Buffer size config
-#define DEF_UDP_PAYLOAD_SIZE    (64)
+#define DEF_UDP_PAYLOAD_SIZE    (64)                // in Byte(Octet), 1472 Byte max
 // Ethernet
 #define DEF_ETH_DST_MAC         (0xFFFFFFFFFFFF)    // Destination MAC Address
 #define DEF_ETH_SRC_MAC         (0x123456789ABC)    // RasPico MAC Address

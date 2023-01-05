@@ -19,6 +19,7 @@ target_link_libraries(${target_name} PRIVATE
     pico_stdlib
     hardware_pio
     hardware_irq
+    hardware_dma
     )
 
 # enable usb output, disable uart output
