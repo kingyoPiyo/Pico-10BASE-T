@@ -37,9 +37,6 @@
 
         sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
 
-        // 125MHz / 6.25 = 20MHz
-        // sm_config_set_clkdiv(&c, 6.25f);
-
         // 240MHz / 12.0 = 20MHz
         sm_config_set_clkdiv(&c, 12.0f);
 

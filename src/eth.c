@@ -39,7 +39,7 @@
 static PIO pio_serdes = pio0;
 static uint sm_tx = 0;
 static uint sm_rx = 1;
-volatile static uint32_t gsram[4][512]; // RX data buffer for Core0 and 1
+volatile static uint32_t gsram[8][512]; // RX data buffer for Core0 and 1
 static uint32_t tx_buf_udp[DEF_UDP_BUF_SIZE+1] = {0};
 static uint32_t tx_buf_arp[DEF_ARP_BUF_SIZE+1] = {0};
 static uint32_t tx_buf_icmp[DEF_ICMP_BUF_SIZE+1] = {0};
@@ -101,8 +101,10 @@ void eth_init(void) {
 }
 
 
+// RUN at Core0
 void eth_main(void) {    
     static uint32_t sfd_cnt = 0;
+    static uint32_t st_time;
 
     // Link Pulse
 #ifdef DEF_10BASET_FULL_ENABLE
@@ -111,16 +113,21 @@ void eth_main(void) {
         _send_nlp();
 #endif
 
-    // Test Packet
-    _send_udp();
 
     // for RX Debug
     if (multicore_fifo_rvalid()) {
         uint32_t pop_data = multicore_fifo_pop_blocking();  // index num
-        uint32_t slot = pop_data & 0x3; // 0 ~ 3
+        uint32_t slot = pop_data & 0x7; // 0 ~ 7
+        uint32_t size = pop_data >> 3;  // x 32bit
         sfd_cnt++;
 
-        //printf("slot:%d, size:%d\r\n", slot, pop_data >> 2);
+        printf("slot:%d, size:%d\r\n", slot, size);
+
+        // Status LED
+        if (time_us_32() - st_time > 50000) {
+            gpio_put(HW_PINNUM_LED_G, true);
+            st_time = time_us_32();
+        }
 
         uint64_t eth_dst = ((((uint64_t)gsram[slot][0]) << 16) + (gsram[slot][1] >> 16)) & 0xFFFFFFFFFFFF;
         uint64_t eth_src = ((((uint64_t)gsram[slot][1]) << 32) + (gsram[slot][2])) & 0xFFFFFFFFFFFF;
@@ -165,6 +172,15 @@ void eth_main(void) {
                 printf("\r\n");
             }
         }
+    }
+    else
+    {
+        // Dummy Packet
+        _send_udp();
+    }
+
+    if ((time_us_32() - st_time) > 25000) {
+        gpio_put(HW_PINNUM_LED_G, false);
     }
 }
 
@@ -240,9 +256,12 @@ static void __time_critical_func(_rx_isr)(void) {
     uint32_t rx_buf;
     uint32_t rx_buf_old;
     bool sfd_det = false;
+    bool frame_busy = false;
+    bool link_up = false;
+    bool link_up_old = false;
     uint8_t shift_num;
     uint32_t index = 0;
-    uint32_t slot = 0;   // 0~3
+    uint32_t slot = 0;   // 0~7
     uint32_t ldm_timer = time_us_32();
     
     
@@ -289,6 +308,7 @@ static void __time_critical_func(_rx_isr)(void) {
         
             if (sfd_det) {
                 index = 0;
+                frame_busy = true;
             } else {
                 uint32_t tmp = (rx_buf <<  (32 - shift_num)) + (rx_buf_old >> shift_num);
                 gsram[slot][index] = (tmp << 24) | ((tmp & 0x0000FF00) << 8) | ((tmp & 0x00FF0000) >> 8) | (tmp >> 24);
@@ -296,25 +316,41 @@ static void __time_critical_func(_rx_isr)(void) {
             }
             rx_buf_old = rx_buf;
 
-            // Link LED ON
-            gpio_put(HW_PINNUM_LED_Y, true);
+            // Link Status
+            link_up = true;
             ldm_timer = time_us_32();
 
             gpio_put(HW_PINNUM_OUT1, 0);    // For CPU usage monitor
         }
 
-        // SFD
-        if (sfd_det) {
-            sfd_det = false;
-            multicore_fifo_push_blocking((index << 2) + slot);  // Notify for Core0
-            slot = (slot + 1) & 0x3;
+        
+        if (frame_busy && ((time_us_32() - ldm_timer) > 6)) {
+            frame_busy = false;
+
+            // ねじ込み
+            uint32_t tmp = (rx_buf <<  (32 - shift_num)) + (rx_buf_old >> shift_num);
+            gsram[slot][index] = (tmp << 24) | ((tmp & 0x0000FF00) << 8) | ((tmp & 0x00FF0000) >> 8) | (tmp >> 24);
+
+            multicore_fifo_push_blocking((index << 3) + slot);  // Notify for Core0
+            slot = (slot + 1) & 0x7;
         }
 
         // Detect Link Down
         if (time_us_32() - ldm_timer > DEF_LINK_TIMEOUT_US) {
-            printf("Link Down...\r\n");
+            link_up = false;
             ldm_timer = time_us_32();
-            gpio_put(HW_PINNUM_LED_Y, false);
+        }
+
+        // Show Link Status
+        if (link_up != link_up_old) {
+            if (link_up) {
+                gpio_put(HW_PINNUM_LED_Y, true);
+                printf("Link Up\r\n");
+            } else {
+                gpio_put(HW_PINNUM_LED_Y, false);
+                printf("Link Down\r\n");
+            }
+            link_up_old = link_up;
         }
     }
 }
