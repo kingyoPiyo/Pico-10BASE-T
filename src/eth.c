@@ -15,7 +15,10 @@
 // Define
 #define DEF_10BASET_FULL_ENABLE                 // Enable 10BASE-T Full Duplex
 
-#define HW_PINNUM_RXP           (18)            // Ethernet RX+
+#define HW_PINNUM_RXP           (17)            // Ethernet RX+
+#define HW_PINNUM_LED_G         (13)            // Ethernet LED G
+#define HW_PINNUM_LED_Y         (18)            // Ethernet LED Y
+
 #define HW_PINNUM_OUT0          (1)             // SMA OUT0 for Debug
 #define HW_PINNUM_OUT1          (0)             // SMA OUT0 for Debug
 #define DEF_NFLP_INTERVAL_US    (16000)         // NLP/FLP interval = 16ms +/- 8ms
@@ -62,9 +65,9 @@ void eth_init(void) {
     icmp_init();
 
     // 10BASE-T Serializer PIO init
-    // Pin numbers must be sequential. (use pin16, 17)
+    // Pin numbers must be sequential. (use pin14, 15)
     offset = pio_add_program(pio_serdes, &ser_10base_t_program);
-    ser_10base_t_program_init(pio_serdes, sm_tx, offset, 16);
+    ser_10base_t_program_init(pio_serdes, sm_tx, offset, 14);
 
     // Wait for Link up....
     for (uint32_t i = 0; i < 200;) {
@@ -74,9 +77,22 @@ void eth_init(void) {
         if (_send_nlp()) i++;
 #endif
     }
+
+    // LED
+    gpio_init(HW_PINNUM_LED_G);
+    gpio_set_dir(HW_PINNUM_LED_G, GPIO_OUT);
+    gpio_init(HW_PINNUM_LED_Y);
+    gpio_set_dir(HW_PINNUM_LED_Y, GPIO_OUT);
+
+    gpio_put(HW_PINNUM_LED_G, true);
+    gpio_put(HW_PINNUM_LED_Y, true);
+    sleep_ms(500);
+    gpio_put(HW_PINNUM_LED_G, false);
+    gpio_put(HW_PINNUM_LED_Y, false);
     
     // RX
     gpio_init(HW_PINNUM_RXP);   gpio_set_dir(HW_PINNUM_RXP, GPIO_IN);       // Ethernet RX+
+    gpio_set_input_hysteresis_enabled(HW_PINNUM_RXP, false);
     gpio_init(HW_PINNUM_OUT0);  gpio_set_dir(HW_PINNUM_OUT0, GPIO_OUT);     // SMA Out for Debug
     gpio_init(HW_PINNUM_OUT1);  gpio_set_dir(HW_PINNUM_OUT1, GPIO_OUT);     // SMA Out for Debug
     offset = pio_add_program(pio_serdes, &des_10base_t_program);
@@ -88,8 +104,12 @@ void eth_init(void) {
 void eth_main(void) {    
     static uint32_t sfd_cnt = 0;
 
-    // NLP
-    _send_nlp();
+    // Link Pulse
+#ifdef DEF_10BASET_FULL_ENABLE
+        _send_flp(0x8602);
+#else
+        _send_nlp();
+#endif
 
     // Test Packet
     _send_udp();
@@ -219,8 +239,7 @@ bool _send_udp(void) {
 static void __time_critical_func(_rx_isr)(void) {
     uint32_t rx_buf;
     uint32_t rx_buf_old;
-    bool sfd_det;
-    bool ifg_en = false;
+    bool sfd_det = false;
     uint8_t shift_num;
     uint32_t index = 0;
     uint32_t slot = 0;   // 0~3
@@ -269,7 +288,6 @@ static void __time_critical_func(_rx_isr)(void) {
             if ( 0xd5555555 == (rx_buf <<  1) + (rx_buf_old >> 31) ) { shift_num = 31; sfd_det = true; }
         
             if (sfd_det) {
-                ifg_en = true;
                 index = 0;
             } else {
                 uint32_t tmp = (rx_buf <<  (32 - shift_num)) + (rx_buf_old >> shift_num);
@@ -277,13 +295,17 @@ static void __time_critical_func(_rx_isr)(void) {
                 index = (index + 1) & 0x1FF;
             }
             rx_buf_old = rx_buf;
+
+            // Link LED ON
+            gpio_put(HW_PINNUM_LED_Y, true);
             ldm_timer = time_us_32();
+
             gpio_put(HW_PINNUM_OUT1, 0);    // For CPU usage monitor
         }
 
-        // IFG
-        if ((time_us_32() - ldm_timer > 10) && ifg_en) {
-            ifg_en = false;
+        // SFD
+        if (sfd_det) {
+            sfd_det = false;
             multicore_fifo_push_blocking((index << 2) + slot);  // Notify for Core0
             slot = (slot + 1) & 0x3;
         }
@@ -292,6 +314,7 @@ static void __time_critical_func(_rx_isr)(void) {
         if (time_us_32() - ldm_timer > DEF_LINK_TIMEOUT_US) {
             printf("Link Down...\r\n");
             ldm_timer = time_us_32();
+            gpio_put(HW_PINNUM_LED_Y, false);
         }
     }
 }

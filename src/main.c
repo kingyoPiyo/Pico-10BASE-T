@@ -4,6 +4,7 @@
 * Design   : kingyo
 ********************************************************/
 #include "pico/stdlib.h"
+#include "hardware/vreg.h"
 #include "hardware/irq.h"
 #include "eth.h"
 
@@ -24,6 +25,12 @@ static bool repeating_timer_callback(struct repeating_timer *t) {
 
 
 int main() {
+    // Core voltage
+    //vreg_set_voltage(VREG_VOLTAGE_1_10); // default
+    //vreg_set_voltage(VREG_VOLTAGE_1_15); // 
+    vreg_set_voltage(VREG_VOLTAGE_1_20); // 
+    //vreg_set_voltage(VREG_VOLTAGE_1_25); // 
+    sleep_ms(10);
     set_sys_clock_khz(240000, true);    // Over clock 240MHz
 
     stdio_init_all();

@@ -11,8 +11,8 @@
 ;clk 20MHz, input 2bit
 .wrap_target
     out pc, 2  side 0b00    ; IDLE
-    out pc, 2  side 0b01    ; LOW
-    out pc, 2  side 0b10    ; HIGH
+    out pc, 2  side 0b10    ; LOW
+    out pc, 2  side 0b01    ; HIGH
 .wrap
 
 % c-sdk {
