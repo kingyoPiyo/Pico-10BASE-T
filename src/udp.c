@@ -1,4 +1,6 @@
 #include "udp.h"
+#include "hardware/pio.h"
+#include "ser_10base_t.pio.h"
 
 #if UDP_DMA_EN
 #include "hardware/dma.h"
@@ -34,6 +36,10 @@ static uint8_t  data_8b[DEF_UDP_BUF_SIZE];
 static uint16_t ip_identifier = 0;
 static uint32_t ip_chk_sum1, ip_chk_sum2, ip_chk_sum3;
 
+// PIO
+static PIO pio_ser_wr = pio0;
+static uint sm0 = 0;
+
 #if UDP_DMA_EN
 static uint32_t dma_ch;
 static dma_channel_config dma_conf;
@@ -61,14 +67,16 @@ static const uint16_t  ip_total_len        = 20 + DEF_UDP_LEN;
 
 
 
-void udp_init(void) {
+void udp_init(int tx_pin) {
+    // 10BASE-T Serializer PIO init
+    uint offset = pio_add_program(pio_ser_wr, &ser_10base_t_program);
+    ser_10base_t_program_init(pio_ser_wr, sm0, offset, tx_pin);
 #if UDP_DMA_EN
     dma_ch = dma_claim_unused_channel(true);
-    dma_conf = dma_channel_get_default_config(dma_ch);
-    channel_config_set_transfer_data_size(&dma_conf, DMA_SIZE_8);
 #else
     _make_crc_table();
 #endif
+
 }
 
 
@@ -145,6 +153,8 @@ void udp_packet_gen_10base(uint32_t *buf, uint8_t *udp_payload) {
     // UDP payload
 #if UDP_DMA_EN
     // Copy using DMA transfer
+    dma_conf = dma_channel_get_default_config(dma_ch);
+    channel_config_set_transfer_data_size(&dma_conf, DMA_SIZE_8);
     channel_config_set_read_increment(&dma_conf, true);
     channel_config_set_write_increment(&dma_conf, true);
     dma_channel_configure (
@@ -205,4 +215,34 @@ void udp_packet_gen_10base(uint32_t *buf, uint8_t *udp_payload) {
     }
     // TP_IDL
     buf[i] = 0x00000AAA;
+}
+
+
+void udp_send_nlp(void) {
+    // Sending NLP Pulse (Pulse width = 100ns)
+    ser_10base_t_tx_10b(pio_ser_wr, sm0, 0x0000000A);
+}
+
+
+void udp_send_packet(uint32_t *buf) {
+#if UDP_DMA_EN
+    dma_conf = dma_channel_get_default_config(dma_ch);
+    channel_config_set_dreq(&dma_conf, pio_get_dreq(pio_ser_wr, sm0, true));
+    channel_config_set_transfer_data_size(&dma_conf, DMA_SIZE_32);
+    channel_config_set_read_increment(&dma_conf, true);
+    channel_config_set_write_increment(&dma_conf, false);
+    dma_channel_configure (
+        dma_ch,                 // Channel to be configured
+        &dma_conf,              // The configuration we just created
+        &pio_ser_wr->txf[sm0],  // Destination address
+        buf,                    // Source address
+        (DEF_UDP_BUF_SIZE+1),   // Number of transfers
+        true                    // Start yet
+    );
+    dma_channel_wait_for_finish_blocking(dma_ch);
+#else
+    for (uint32_t i = 0; i < DEF_UDP_BUF_SIZE+1; i++) {
+        ser_10base_t_tx_10b(pio_ser_wr, sm0, *(buf + i));
+    }
+#endif
 }

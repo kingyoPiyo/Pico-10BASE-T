@@ -53,7 +53,9 @@
 #define DEF_UDP_BUF_SIZE        (DEF_UDP_PAYLOAD_SIZE + 54)
 
 
-void udp_init(void);
+void udp_init(int tx_pin);
 void udp_packet_gen_10base(uint32_t *buf, uint8_t *udp_payload);
+void udp_send_nlp(void);
+void udp_send_packet(uint32_t *buf);
 
 #endif //__UDP_H__
