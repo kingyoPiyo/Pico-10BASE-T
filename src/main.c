@@ -7,9 +7,9 @@
 ********************************************************/
 #include "pico/stdlib.h"
 #include "hardware/irq.h"
-#include "udp.h"
 #include "hardware/pio.h"
 #include "ser_10base_t.pio.h"
+#include "udp.h"
 #include <stdio.h>
 
 
@@ -43,9 +43,12 @@ int main() {
     uint32_t time_nlp = 0;
     uint32_t time_tx = 0;
 
+    // Setting the Clock frequency divider to a multiple of 20 MHz,
+    // allows the PIO divider to operate at integer multiples (Reduce jitter).
+    set_sys_clock_khz(120000, true);
+
     stdio_init_all();
     udp_init();
-
 
     // Onboard LED tikatika~
     gpio_init(HW_PINNUM_LED0);
