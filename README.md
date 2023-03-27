@@ -7,6 +7,9 @@ Note:
 * Receiving process will be implemented in the future...
 * It is advisable to insert a pulse transformer for safety.
 
+See also :  
+https://github.com/kingyoPiyo/Pico-RJ45-Sock  
+
 # Setup
 * Raspberry Pi Pico
 * 2 x 47 ohm resistor
