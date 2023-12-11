@@ -2,6 +2,7 @@
 #define __UDP_H__
 
 #include <stdint.h>
+#include "pico/stdlib.h"
 
 // == DMA settings ==
 // If 1, using DMA to copy payload and calculate CRC(FCS). 
@@ -14,9 +15,7 @@
 //                  512          60.4             137.3
 //                 1472         160.2             375.4
 //  ----------------------------------------------------
-#ifndef UDP_DMA_EN
-#define UDP_DMA_EN 1
-#endif
+#define UDP_DMA_EN              (1)
 
 // Buffer size config
 #define DEF_UDP_PAYLOAD_SIZE    (64)                // in Byte(Octet), 1472 Byte max
@@ -52,10 +51,14 @@
 //              x + 54
 #define DEF_UDP_BUF_SIZE        (DEF_UDP_PAYLOAD_SIZE + 54)
 
+// NLP:Normal Link Pulse
+// interval (16ms +/- 8ms)
+#define DEF_NLP_INTERVAL_US     (16000)
+
 
 void udp_init(int tx_pin);
 void udp_packet_gen_10base(uint32_t *buf, uint8_t *udp_payload);
-void udp_send_nlp(void);
+bool udp_send_nlp(void);
 void udp_send_packet(uint32_t *buf);
 
 #endif //__UDP_H__

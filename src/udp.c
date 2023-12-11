@@ -35,6 +35,9 @@ const static uint32_t tbl_manchester[256] = {
 static uint8_t  data_8b[DEF_UDP_BUF_SIZE];
 static uint16_t ip_identifier = 0;
 static uint32_t ip_chk_sum1, ip_chk_sum2, ip_chk_sum3;
+static uint32_t time_nlp = 0;
+
+static void _udp_clear_nlp_timer_cnt(void);
 
 // PIO
 static PIO pio_ser_wr = pio0;
@@ -218,9 +221,23 @@ void udp_packet_gen_10base(uint32_t *buf, uint8_t *udp_payload) {
 }
 
 
-void udp_send_nlp(void) {
-    // Sending NLP Pulse (Pulse width = 100ns)
-    ser_10base_t_tx_10b(pio_ser_wr, sm0, 0x0000000A);
+void _udp_clear_nlp_timer_cnt(void) {
+    time_nlp = time_us_32();
+}
+
+
+bool udp_send_nlp(void) {
+    uint32_t time_now = time_us_32();
+    bool ret = false;
+
+    if ((time_now - time_nlp) > DEF_NLP_INTERVAL_US) {
+        time_nlp = time_now;
+        // Sending NLP Pulse (Pulse width = 100ns)
+        ser_10base_t_tx_10b(pio_ser_wr, sm0, 0x0000000A);
+        ret = true;
+    }
+
+    return ret;
 }
 
 
@@ -245,4 +262,5 @@ void udp_send_packet(uint32_t *buf) {
         ser_10base_t_tx_10b(pio_ser_wr, sm0, *(buf + i));
     }
 #endif
+    _udp_clear_nlp_timer_cnt();
 }

@@ -12,7 +12,6 @@
 
 #define HW_PINNUM_TXD       (16)        // 10BASE-T TX- Pin. The TX+ pin is the number plus one.
 #define HW_PINNUM_LED0      (25)        // Pico onboard LED
-#define DEF_NLP_INTERVAL_US (16000)     // NLP interval (16ms +/- 8ms)
 #define DEF_TX_INTERVAL_US  (200000)    // Dummy Data TX interval
 
 
@@ -35,7 +34,6 @@ int main() {
 
     uint32_t lp_cnt = 0;
     uint32_t time_now = 0;
-    uint32_t time_nlp = 0;
     uint32_t time_tx = 0;
 
     // Setting the Clock frequency divider to a multiple of 20 MHz,
@@ -52,9 +50,8 @@ int main() {
 
 
     // Wait for Link up....
-    for (uint32_t i = 0; i < 100; i++) {
-        udp_send_nlp();     // Sending NLP Pulse
-        sleep_ms(16);       // NLP interval = 16ms +/- 8ms
+    for (uint32_t i = 0; i < 200;) {
+        if (udp_send_nlp()) i++;
     }
 
 
@@ -63,13 +60,8 @@ int main() {
     while (1) {
         time_now = time_us_32();
 
-
         // Sending NLP Puls
-        if ((time_now - time_nlp) > DEF_NLP_INTERVAL_US) {
-            time_nlp = time_now;
-            udp_send_nlp();
-        }
-
+        udp_send_nlp();
 
         // Sending UDP packets
         if ((time_now - time_tx) > DEF_TX_INTERVAL_US) {
