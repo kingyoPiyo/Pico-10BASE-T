@@ -6,6 +6,7 @@
 * Design   : kingyo
 ********************************************************/
 #include "pico/stdlib.h"
+#include "hardware/clocks.h"
 #include "hardware/irq.h"
 #include "udp.h"
 #include <stdio.h>
